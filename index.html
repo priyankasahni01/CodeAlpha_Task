@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Age Calculator</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="card">
+    <h1>Age Calculator</h1>
+
+    <!-- Updated Form Inputs: Day / Month / Year -->
+    <form id="ageForm">
+      <select id="day" required>
+        <option value="">Day</option>
+      </select>
+
+      <select id="month" required>
+        <option value="">Month</option>
+      </select>
+
+      <select id="year" required>
+        <option value="">Year</option>
+      </select>
+
+      <button type="submit">Calculate</button>
+    </form>
+
+    <!-- Result Section -->
+    <section id="result" class="hidden">
+      <h2>Your Age</h2>
+      <p><span id="years">0</span> years</p>
+      <p><span id="months">0</span> months</p>
+      <p><span id="days">0</span> days</p>
+      <p id="birthdayMsg"></p>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,89 +1,52 @@
-// Elements
-const form = document.getElementById('ageForm');
-const daySelect = document.getElementById('day');
-const monthSelect = document.getElementById('month');
-const yearSelect = document.getElementById('year');
+const audio = document.getElementById('audio');
+let tracks = [];
+let currentIndex = -1;
 
-const yearsEl = document.getElementById('years');
-const monthsEl = document.getElementById('months');
-const daysEl = document.getElementById('days');
-const resultBox = document.getElementById('result');
-const birthdayEl = document.getElementById('birthdayMsg');
-
-// Fill Day, Month, Year dropdowns
-function populateDateFields() {
-  for (let d = 1; d <= 31; d++) {
-    daySelect.innerHTML += `<option value="${d}">${d}</option>`;
-  }
-  const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
-  months.forEach((month, index) => {
-    monthSelect.innerHTML += `<option value="${index}">${month}</option>`;
+// fetch and render
+async function loadTracks(){
+  tracks = await fetch('/api/tracks').then(r=>r.json());
+  const container = document.getElementById('tracks');
+  container.innerHTML = '';
+  tracks.forEach((t, i) => {
+    const div = document.createElement('div'); div.className='item';
+    div.innerHTML = `<span>${t.title}</span><div><button data-i="${i}" class="playBtn">Play</button></div>`;
+    container.appendChild(div);
   });
-  const currentYear = new Date().getFullYear();
-  for (let y = currentYear; y >= 1900; y--) {
-    yearSelect.innerHTML += `<option value="${y}">${y}</option>`;
-  }
+  document.querySelectorAll('.playBtn').forEach(b => b.addEventListener('click', e => playIndex(+e.target.dataset.i)));
 }
-
-// Age calculation
-function calculateAge(dob) {
-  const today = new Date();
-  let years = today.getFullYear() - dob.getFullYear();
-  let months = today.getMonth() - dob.getMonth();
-  let days = today.getDate() - dob.getDate();
-
-  if (days < 0) {
-    const prevMonthDays = new Date(today.getFullYear(), today.getMonth(), 0).getDate();
-    days += prevMonthDays;
-    months--;
-  }
-
-  if (months < 0) {
-    months += 12;
-    years--;
-  }
-
-  return { years, months, days };
+function playIndex(i){
+  if(!tracks[i]) return;
+  currentIndex = i;
+  audio.src = tracks[i].url;
+  audio.play();
+  document.getElementById('now').textContent = tracks[i].title;
 }
+document.getElementById('play').addEventListener('click', ()=> audio.play());
+document.getElementById('pause').addEventListener('click', ()=> audio.pause());
+document.getElementById('next').addEventListener('click', ()=> playIndex((currentIndex+1) % tracks.length));
+document.getElementById('prev').addEventListener('click', ()=> playIndex((currentIndex-1+tracks.length) % tracks.length));
+document.getElementById('volume').addEventListener('input', e => audio.volume = e.target.value);
+audio.addEventListener('timeupdate', ()=> {
+  if(audio.duration) document.getElementById('progress').value = (audio.currentTime/audio.duration)*100;
+});
+document.getElementById('progress').addEventListener('input', e => {
+  if(audio.duration) audio.currentTime = (e.target.value/100)*audio.duration;
+});
 
-// On form submit
-form.addEventListener('submit', (e) => {
+// uploader
+document.getElementById('uploadForm').addEventListener('submit', async (e) => {
   e.preventDefault();
-
-  const day = parseInt(daySelect.value);
-  const month = parseInt(monthSelect.value);
-  const year = parseInt(yearSelect.value);
-
-  if (!day || isNaN(month) || !year) {
-    alert('Please select valid Day, Month, and Year.');
-    return;
-  }
-
-  const dob = new Date(year, month, day);
-  const today = new Date();
-
-  if (dob > today) {
-    alert('Date of birth cannot be in the future.');
-    return;
-  }
-
-  const { years, months, days } = calculateAge(dob);
-
-  yearsEl.textContent = years;
-  monthsEl.textContent = months;
-  daysEl.textContent = days;
-  resultBox.classList.remove('hidden');
-
-  // 🎂 Check for Birthday
-  if (today.getDate() === dob.getDate() && today.getMonth() === dob.getMonth()) {
-    birthdayEl.textContent = '🎉 Happy Birthday! 🎂';
-  } else {
-    birthdayEl.textContent = '';
+  const files = document.getElementById('uploadInput').files;
+  if (!files.length) return;
+  const fd = new FormData();
+  Array.from(files).forEach(f => fd.append('songs', f));
+  const res = await fetch('/upload', { method: 'POST', body: fd });
+  const data = await res.json();
+  if (data.success) {
+    alert('Uploaded ' + data.files.length + ' file(s)');
+    loadTracks();
   }
 });
 
-// Initialize dropdowns on page load
-populateDateFields();
+// initial load
+loadTracks();

@@ -1,42 +1,33 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Age Calculator</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="utf-8">
+  <title>Music Player</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="card">
-    <h1>Age Calculator</h1>
+  <header><h1>Music Player</h1></header>
 
-    <!-- Updated Form Inputs: Day / Month / Year -->
-    <form id="ageForm">
-      <select id="day" required>
-        <option value="">Day</option>
-      </select>
-
-      <select id="month" required>
-        <option value="">Month</option>
-      </select>
-
-      <select id="year" required>
-        <option value="">Year</option>
-      </select>
-
-      <button type="submit">Calculate</button>
+  <section id="uploader">
+    <form id="uploadForm">
+      <input type="file" id="uploadInput" name="songs" accept="audio/*" multiple>
+      <button type="submit">Upload</button>
     </form>
+  </section>
 
-    <!-- Result Section -->
-    <section id="result" class="hidden">
-      <h2>Your Age</h2>
-      <p><span id="years">0</span> years</p>
-      <p><span id="months">0</span> months</p>
-      <p><span id="days">0</span> days</p>
-      <p id="birthdayMsg"></p>
-    </section>
-  </div>
+  <section id="tracks"></section>
 
-  <script src="app.js"></script>
+  <footer class="player">
+    <div id="now">No track</div>
+    <button id="prev">⏮</button>
+    <button id="play">▶️</button>
+    <button id="pause">⏸</button>
+    <button id="next">⏭</button>
+    <input id="progress" type="range" min="0" max="100" value="0">
+    <input id="volume" type="range" min="0" max="1" step="0.01" value="1">
+    <audio id="audio" preload="metadata"></audio>
+  </footer>
+
+  <script src="script.js"></script>
 </body>
 </html>

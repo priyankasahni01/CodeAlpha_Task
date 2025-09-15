@@ -1,46 +1,43 @@
-// server.js (minimal)
-const express = require('express');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-const { nanoid } = require('nanoid');
+import express from 'express';
+import cors from 'cors';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import db from './models.js';
+
 const app = express();
-const PORT = process.env.PORT || 3000;
-
+app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
-app.use('/songs', express.static(path.join(__dirname, 'uploads')));
 
-// multer storage
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, path.join(__dirname, 'uploads')),
-  filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname.replace(/\s+/g,'_'))
-});
-const upload = multer({ storage, fileFilter: (req, file, cb) => {
-  cb(null, file.mimetype.startsWith('audio/'));
-}});
+const httpServer = createServer(app);
+const io = new Server(httpServer, { cors: { origin: '*' } });
 
-// simple JSON db helpers
-const DB = path.join(__dirname, 'db.json');
-function readDB(){ return JSON.parse(fs.readFileSync(DB, 'utf8') || '{"tracks":[],"playlists":[]}'); }
-function writeDB(d){ fs.writeFileSync(DB, JSON.stringify(d, null, 2)); }
-
-// upload route
-app.post('/upload', upload.array('songs'), (req, res) => {
-  const db = readDB();
-  const added = (req.files || []).map(f => {
-    const track = { id: nanoid(), title: f.originalname, artist:'Unknown', genre:'Unknown', srcType:'file', url:`/songs/${f.filename}` };
-    db.tracks.push(track);
-    return track;
-  });
-  writeDB(db);
-  res.json({ success: true, files: added });
+// === REST API ===
+app.get('/projects', (_, res) => {
+  const projects = db.prepare('SELECT * FROM projects').all();
+  res.json(projects);
 });
 
-// basic track listing
-app.get('/api/tracks', (req,res)=>{
-  const db = readDB();
-  res.json(db.tracks);
+app.post('/projects', (req, res) => {
+  const { name } = req.body;
+  const info = db.prepare('INSERT INTO projects(name) VALUES (?)').run(name);
+  io.emit('project:new', { id: info.lastInsertRowid, name });
+  res.json({ id: info.lastInsertRowid, name });
 });
 
-app.listen(PORT, ()=>console.log(`Server running at http://localhost:${PORT}`));
+app.post('/tasks', (req, res) => {
+  const { projectId, title } = req.body;
+  const info = db.prepare('INSERT INTO tasks(projectId, title, status) VALUES (?, ?, ?)')
+                 .run(projectId, title, 'todo');
+  io.emit('task:new', { id: info.lastInsertRowid, projectId, title, status: 'todo' });
+  res.json({ id: info.lastInsertRowid, projectId, title, status: 'todo' });
+});
+
+app.post('/comments', (req, res) => {
+  const { taskId, text } = req.body;
+  const info = db.prepare('INSERT INTO comments(taskId, text) VALUES (?, ?)').run(taskId, text);
+  io.emit('comment:new', { id: info.lastInsertRowid, taskId, text });
+  res.json({ id: info.lastInsertRowid, taskId, text });
+});
+
+// Start
+httpServer.listen(5000, () => console.log('Backend running on http://localhost:5000'));

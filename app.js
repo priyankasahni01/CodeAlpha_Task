@@ -1,52 +1,44 @@
-const audio = document.getElementById('audio');
-let tracks = [];
-let currentIndex = -1;
+const API = 'http://localhost:5000';
+const socket = io(API);
+let currentProject = null;
 
-// fetch and render
-async function loadTracks(){
-  tracks = await fetch('/api/tracks').then(r=>r.json());
-  const container = document.getElementById('tracks');
-  container.innerHTML = '';
-  tracks.forEach((t, i) => {
-    const div = document.createElement('div'); div.className='item';
-    div.innerHTML = `<span>${t.title}</span><div><button data-i="${i}" class="playBtn">Play</button></div>`;
-    container.appendChild(div);
+async function loadProjects() {
+  const res = await fetch(API + '/projects');
+  const projects = await res.json();
+  const list = document.getElementById('projects');
+  list.innerHTML = '';
+  projects.forEach(p => {
+    const li = document.createElement('li');
+    li.textContent = p.name;
+    li.onclick = () => { currentProject = p.id; loadTasks(); };
+    list.appendChild(li);
   });
-  document.querySelectorAll('.playBtn').forEach(b => b.addEventListener('click', e => playIndex(+e.target.dataset.i)));
 }
-function playIndex(i){
-  if(!tracks[i]) return;
-  currentIndex = i;
-  audio.src = tracks[i].url;
-  audio.play();
-  document.getElementById('now').textContent = tracks[i].title;
+
+async function loadTasks() {
+  const res = await fetch(API + '/tasks'); // optional: filter in backend
+  const tasks = await res.json();
+  const list = document.getElementById('tasks');
+  list.innerHTML = '';
+  tasks.filter(t => t.projectId === currentProject).forEach(t => {
+    const li = document.createElement('li');
+    li.textContent = `${t.title} [${t.status}]`;
+    list.appendChild(li);
+  });
 }
-document.getElementById('play').addEventListener('click', ()=> audio.play());
-document.getElementById('pause').addEventListener('click', ()=> audio.pause());
-document.getElementById('next').addEventListener('click', ()=> playIndex((currentIndex+1) % tracks.length));
-document.getElementById('prev').addEventListener('click', ()=> playIndex((currentIndex-1+tracks.length) % tracks.length));
-document.getElementById('volume').addEventListener('input', e => audio.volume = e.target.value);
-audio.addEventListener('timeupdate', ()=> {
-  if(audio.duration) document.getElementById('progress').value = (audio.currentTime/audio.duration)*100;
-});
-document.getElementById('progress').addEventListener('input', e => {
-  if(audio.duration) audio.currentTime = (e.target.value/100)*audio.duration;
-});
 
-// uploader
-document.getElementById('uploadForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const files = document.getElementById('uploadInput').files;
-  if (!files.length) return;
-  const fd = new FormData();
-  Array.from(files).forEach(f => fd.append('songs', f));
-  const res = await fetch('/upload', { method: 'POST', body: fd });
-  const data = await res.json();
-  if (data.success) {
-    alert('Uploaded ' + data.files.length + ' file(s)');
-    loadTracks();
-  }
-});
+async function addProject() {
+  const name = document.getElementById('projectName').value;
+  await fetch(API + '/projects', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name})});
+}
 
-// initial load
-loadTracks();
+async function addTask() {
+  if(!currentProject) return alert('Select project first');
+  const title = document.getElementById('taskTitle').value;
+  await fetch(API + '/tasks', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({projectId: currentProject, title})});
+}
+
+socket.on('project:new', loadProjects);
+socket.on('task:new', loadTasks);
+
+loadProjects();
